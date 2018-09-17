@@ -59,13 +59,13 @@ func urlComponents(_ componenst1: URLComponents, equalTo components2: URLCompone
 
 class AstronomyTests: XCTestCase {
     
-    let testMarsRover = MarsRover(name: "Curiosity", launchDate: Date(), landingDate: Date(), status: .active, maxSol: 3, maxDate: Date(), numberOfPhotos: 90, solDescriptions: [SolDescription(sol: 4, totalPhotos: 9, cameras: ["Hi"])])
+    let testMarsRover = MarsRover(name: "Curiosity", launchDate: Date(), landingDate: Date(), status: .active, maxSol: 2172, maxDate: Date(), numberOfPhotos: 90, solDescriptions: [SolDescription(sol: 4, totalPhotos: 9, cameras: ["Hi"])])
     
     func testFetchPhotosWithValidData() {
         
         let expectation = self.expectation(description: "Fetch photos")
         
-        let mock = MockDataLoader(data: testJSON)
+        let mock = MockDataLoader(data: testPhotoJSON)
         let marsRoverClient = MarsRoverClient(dataLoader: mock)
         
         marsRoverClient.fetchPhotos(from: testMarsRover, onSol: 0) { (photoRefs, error) in
@@ -90,13 +90,56 @@ class AstronomyTests: XCTestCase {
     func testFetchPhotosWithError() {
         let expectation = self.expectation(description: "Fetch photos")
         
+        let error = NSError(domain: "Error not found", code: 404, userInfo: nil)
+        
         let mock = MockDataLoader(error: error)
         let marsRoverClient = MarsRoverClient(dataLoader: mock)
         
-        let error = NSError(domain: "Error not found", code: 404, userInfo: nil)
         
         marsRoverClient.fetchPhotos(from: testMarsRover, onSol: 0) { (photoRefs, error) in
             XCTAssertNil(photoRefs)
+            XCTAssertNotNil(error)
+            expectation.fulfill()
+        }
+        
+        waitForExpectations(timeout: 10, handler: nil)
+    }
+    
+    func testFetchMarsRoverWithValidData() {
+        let expectation = self.expectation(description: "Fetch rover")
+        
+        let mock = MockDataLoader(data: testRoverJSON)
+        let marsRoverClient = MarsRoverClient(dataLoader: mock)
+        
+        marsRoverClient.fetchMarsRover(named: testMarsRover.name) { (rover, error) in
+            
+            XCTAssertNotNil(mock.url)
+            let components = URLComponents(url: mock.url!, resolvingAgainstBaseURL: true)!
+            let testComponents = URLComponents(url: URL(string: "https://api.nasa.gov/mars-photos/api/v1/manifests/Curiosity?api_key=qzGsj0zsKk6CA9JZP1UjAbpQHabBfaPg2M5dGMB7")!, resolvingAgainstBaseURL: true)!
+            XCTAssertTrue(urlComponents(components, equalTo: testComponents))
+            
+            XCTAssertNotNil(rover)
+            XCTAssertNil(error)
+            
+            XCTAssertEqual(rover?.maxSol, self.testMarsRover.maxSol)
+            
+            expectation.fulfill()
+        }
+        
+        waitForExpectations(timeout: 10, handler: nil)
+    }
+    
+    func testFetchMarsRoverWithError() {
+        let expectation = self.expectation(description: "Fetch rover")
+        
+        let error = NSError(domain: "Error not found", code: 404, userInfo: nil)
+        
+        let mock = MockDataLoader(error: error)
+        let marsRoverClient = MarsRoverClient(dataLoader: mock)
+        
+        
+        marsRoverClient.fetchMarsRover(named: testMarsRover.name) { (rover, error) in
+            XCTAssertNil(rover)
             XCTAssertNotNil(error)
             expectation.fulfill()
         }
